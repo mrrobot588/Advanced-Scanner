@@ -11,6 +11,7 @@ import re
 from colorama import Fore, Style, init
 import sys
 import time
+import threading 
 
 # Initial color setup
 init(autoreset=True)
