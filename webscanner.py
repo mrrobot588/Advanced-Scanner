@@ -27,7 +27,7 @@ BANNER = f"""
  ░ ▒  ▒   ▒   ▒▒ ░░▒ ░      ▒ ░▒░ ░  ░ ▒ ▒░ ░▒ ░     
  ░ ░  ░   ░   ▒   ░░        ░  ░░ ░░ ░ ░ ▒  ░░       
    ░          ░  ░          ░  ░  ░    ░ ░           
- ░                                                    
+ ░                                                     
 {Fore.BLUE}      [ Web Vulnerability Scanner Pro ]
 {Fore.YELLOW}         [ Version 3.14 - Kali Edition ]
 {Style.RESET_ALL}
@@ -179,13 +179,48 @@ class ScannerPro:
         self.crawl()
         self.check_security_headers()
 
+        # Brute force directories using wordlist
+        if self.wordlist:
+            self.bruteforce_directories()
+
         self.print_success("Scan completed!")
+
+    def bruteforce_directories(self):
+        """Brute force directories using the wordlist"""
+        if not os.path.isfile(self.wordlist):
+            self.print_error(f"Wordlist file not found: {self.wordlist}")
+            return
+
+        with open(self.wordlist, 'r') as f:
+            wordlist = f.readlines()
+
+        with ThreadPoolExecutor(max_workers=self.threads) as executor:
+            futures = []
+            for path in wordlist:
+                path = path.strip()
+                if path:
+                    full_url = urljoin(self.target, path)
+                    futures.append(executor.submit(self.test_directory, full_url))
+
+            for future in as_completed(futures):
+                future.result()
+
+    def test_directory(self, url):
+        """Test if a directory exists"""
+        try:
+            response = self.session.get(url, proxies=self.proxy, timeout=10)
+            if response.status_code == 200:
+                self.print_success(f"Found directory: {url}")
+        except requests.exceptions.RequestException:
+            pass
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Web Vulnerability Scanner Pro")
     parser.add_argument("-t", "--target", required=True, help="Target URL")
+    parser.add_argument("-w", "--wordlist", help="Path to wordlist for directory brute-forcing", default=None)
     args = parser.parse_args()
 
-    scanner = ScannerPro(target=args.target)
+    scanner = ScannerPro(target=args.target, wordlist=args.wordlist)
     scanner.start_scan()
+
